@@ -12,6 +12,12 @@ module FormtasticSpecHelper
 
     return @default_type
   end
+
+  def builder_for(*args)
+    result = nil
+    semantic_form_for(*args) { |builder| result = builder }
+    result
+  end
 end
 
 describe 'Formtastic' do
@@ -332,38 +338,24 @@ describe 'Formtastic' do
       end
     end
 
-    describe '#errors_on' do
-      before(:each) do
-        @title_errors = ['must not be blank', 'must be longer than 10 characters', 'must be awesome']
-        @errors = mock('errors')
-        @errors.stub!(:on).with('title').and_return(@title_errors)
-        @errors.stub!(:on).with('body').and_return(nil)
-        @new_post.stub!(:errors).and_return(@errors)
-      end
-
+    describe 'error_display', :shared => true do
       describe 'and the errors will be displayed as a sentence' do
         it 'should render a paragraph with the errors joined into a sentence' do
           Formtastic::SemanticFormBuilder.inline_errors = :sentence
-          semantic_form_for(@new_post) do |builder|
-            builder.errors_on(:title).should have_tag('p.inline-errors', @title_errors.to_sentence)
-          end
+          should have_tag('p.inline-errors', @attr_errors.to_sentence)
         end
       end
 
       describe 'and the errors will be displayed as a list' do
         it 'should render an unordered list with the class errors' do
           Formtastic::SemanticFormBuilder.inline_errors = :list
-          semantic_form_for(@new_post) do |builder|
-            builder.errors_on(:title).should have_tag('ul.errors')
-          end
+          should have_tag('ul.errors')
         end
 
         it 'should include a list element for each of the errors within the unordered list' do
           Formtastic::SemanticFormBuilder.inline_errors = :list
-          semantic_form_for(@new_post) do |builder|
-            @title_errors.each do |error|
-              builder.errors_on(:title).should have_tag('ul.errors li', error)
-            end
+          @attr_errors.each do |error|
+            should have_tag('ul.errors li', error)
           end
         end
       end
@@ -371,18 +363,77 @@ describe 'Formtastic' do
       describe 'but the errors will not be shown' do
         it 'should return nil' do
           Formtastic::SemanticFormBuilder.inline_errors = :none
-          semantic_form_for(@new_post) do |builder|
-            builder.errors_on(:title).should be_nil
-          end
+          should be_nil
         end
       end
+    end
+
+    describe '#errors_on' do
+      before(:each) do
+        @attr_errors = ['must not be blank', 'must be longer than 10 characters', 'must be awesome']
+        @errors = mock('errors')
+        @errors.stub!(:on).with('title').and_return(@attr_errors)
+        @errors.stub!(:on).with('body').and_return(nil)
+        @new_post.stub!(:errors).and_return(@errors)
+      end
+
+      subject { builder_for(@new_post).errors_on(:title) }
+
+      it_should_behave_like 'error_display'
 
       describe 'and no error is found on the method' do
         it 'should return nil' do
           Formtastic::SemanticFormBuilder.inline_errors = :sentence
-          semantic_form_for(@new_post) do |builder|
-            builder.errors_on(:body).should be_nil
-          end
+          builder_for(@new_post).errors_on(:body).should be_nil
+        end
+      end
+
+      describe 'and no object is available' do
+        it 'should return nil' do
+          Formtastic::SemanticFormBuilder.inline_errors = :sentence
+          builder_for(:project, :url => '/some/url').errors_on(:title).should be_nil
+        end
+      end
+
+      describe 'and the object does not respond to errors' do
+        before(:each) do
+          @project = stub('project', :id => '1')
+        end
+
+        it 'should return nil' do
+          Formtastic::SemanticFormBuilder.inline_errors = :sentence
+          builder_for(@project, :url => '/some/url').errors_on(:title).should be_nil
+        end
+      end
+    end
+
+    describe '#errors_on_base' do
+      before(:each) do
+        @attr_errors = ['Server is inaccessible', 'This error must be displayed']
+        @errors = mock('errors')
+        @errors.stub!(:on_base).and_return(@attr_errors)
+        @new_post.stub!(:errors).and_return(@errors)
+      end
+
+      subject { builder_for(@new_post).errors_on_base }
+
+      it_should_behave_like 'error_display'
+
+      describe 'and no error is found on base' do
+        before(:each) do
+          @errors.stub!(:on_base).and_return(nil)
+        end
+
+        it 'should return nil' do
+          Formtastic::SemanticFormBuilder.inline_errors = :sentence
+          builder_for(@new_post).errors_on_base.should be_nil
+        end
+      end
+
+      describe 'and no object is available' do
+        it 'should return nil' do
+          Formtastic::SemanticFormBuilder.inline_errors = :sentence
+          builder_for(:project, :url => '/some/url').errors_on_base.should be_nil
         end
       end
     end

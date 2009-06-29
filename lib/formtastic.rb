@@ -369,14 +369,27 @@ module Formtastic #:nodoc:
     #   end
     #
     def inline_errors_for(method, options=nil) #:nodoc:
-      return nil unless @object && @object.respond_to?(:errors) && [:sentence, :list].include?(@@inline_errors)
-
-      errors = @object.errors.on(method.to_s)
-      send("error_#{@@inline_errors}", Array(errors)) unless errors.blank?
+      return nil unless display_errors?
+      error_display(@object.errors.on(method.to_s))
     end
     alias :errors_on :inline_errors_for
 
+    # Generates error messages for base validation errors. Errors can be shown
+    # as list or as sentence. If :none is set, no error is shown.
+    def errors_on_base
+      return nil unless display_errors?
+      error_display(@object.errors.on_base)
+    end
+
     protected
+
+    # Returns true if errors are configured to be displayed for the form's
+    # object. Returns false otherwise.
+    def display_errors?
+      !@object.nil? &&
+        @object.respond_to?(:errors) &&
+        [:sentence, :list].include?(@@inline_errors)
+    end
 
     # Deals with :for option when it's supplied to inputs methods. Additional
     # options to be passed down to :for should be supplied using :for_options
@@ -906,6 +919,11 @@ module Formtastic #:nodoc:
     def inline_hints_for(method, options) #:nodoc:
       return if options[:hint].blank?
       template.content_tag(:p, options[:hint], :class => 'inline-hints')
+    end
+
+    # Displays errors using the current configured style
+    def error_display(errors) #:nodoc:
+      send("error_#{@@inline_errors}", Array(errors)) unless errors.blank?
     end
 
     # Creates an error sentence by calling to_sentence on the errors array.
